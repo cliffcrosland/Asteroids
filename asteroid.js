@@ -306,6 +306,7 @@ Game.world = {
       var entity = Game.entities[i];
       if (entity.isDead()) {
         Game.entities = Game.entities.slice(0, i).concat( Game.entities.slice(i+1) ); // remove the entity
+        i--;
       } else {
         entity.move();
         entity.drawSelf();
