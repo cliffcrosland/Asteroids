@@ -1,5 +1,11 @@
 window.Game = {};
 
+// Random integer in range [low, high], inclusive
+Math.randomInt = function(low, high) {
+  var range = high - low + 1;
+  return low + Math.floor(Math.random() * range);
+}
+
 Game.init = function () {
   Game.canvas = document.getElementById("canvas");
   Game.context = canvas.getContext('2d');
@@ -53,6 +59,7 @@ Game.keyboard = {
 Game.entities = []; // Global collection of all entities in scene.
 Game.entities.player = null;
 
+// Spaceship
 function Spaceship(x, y) {
   this.x = x;
   this.y = y;
@@ -61,6 +68,8 @@ function Spaceship(x, y) {
   this.velY = 0;
   this.angle = Math.PI / 2;
   this.radius = 20;
+  this.laserIsReady = true;
+  this.dead = false;
 }
 
 Spaceship.prototype.drawSelf = function() {
@@ -70,11 +79,26 @@ Spaceship.prototype.drawSelf = function() {
 };
 
 Spaceship.prototype.move = function () {
+  this.checkCollisions();
   this.handleUserVelocityChange();
   this.handleUserShootInput();
   this.x += this.velX;
   this.y += this.velY;
   this.wrapAroundWorld();
+}
+
+Spaceship.prototype.checkCollisions = function () {
+  for (var i = 0, len = Game.entities.length; i < len; i++) {
+    var entity = Game.entities[i];
+    if (entity.isDangerousToPlayer) {
+      var dx = this.x - entity.x;
+      var dy = this.y - entity.y;
+      var dist = Math.sqrt(dx*dx + dy*dy);
+      if (dist < this.radius + entity.radius) {
+        this.dead = true;
+      }
+    }
+  }
 }
 
 Spaceship.prototype.wrapAroundWorld = function () {
@@ -124,7 +148,7 @@ Spaceship.prototype.speedUp = function () {
   if (magnitude < 3) {
     boost = 2;
   } else {
-    boost = 1.1;
+    boost = 1.08;
   }
   this.velX *= boost;
   this.velY *= boost;
@@ -136,19 +160,23 @@ Spaceship.prototype.slowDown = function () {
 }
 
 Spaceship.prototype.isDead = function () { 
-  return false;  // I am invincible!
+  return this.dead;
 }
 
 Spaceship.prototype.handleUserShootInput = function () {
-  if (Game.keyboard.keysDown.spacebar) {
+  if (Game.keyboard.keysDown.spacebar && this.laserIsReady) {
+    this.laserIsReady = false;
     this.shootLaser();
-  }
+  } else if (!Game.keyboard.keysDown.spacebar) {
+    this.laserIsReady = true; // On key up, the laser recharges
+  } 
 }
 
 Spaceship.prototype.shootLaser = function () {
   Game.entities.push(new Laser(this));
 }
 
+//Laser
 function Laser(source) {
   this.x = source.x;
   this.y = source.y;
@@ -183,7 +211,54 @@ Laser.prototype.isDead = function () {
   }
   return false;
 }
-// == Drawing == 
+
+//Asteroid
+function Asteroid(x, y, radius) {
+  this.x = x;
+  this.y = y;
+  this.velX = Math.randomInt(-10, 10);
+  this.velY = Math.randomInt(-10, 10);
+  this.radius = radius;
+  this.isDangerousToPlayer = true;
+}
+
+Asteroid.prototype.drawSelf = function () {
+  Game.context.beginPath();
+  Game.context.arc(this.x, this.y, this.radius, 0, Math.PI * 2, false);
+  Game.context.stroke();
+}
+
+Asteroid.prototype.move = function () {
+  // this.checkCollisions();
+  this.x += this.velX;
+  this.y += this.velY;
+  this.wrapAroundWorld();
+}
+
+Asteroid.prototype.wrapAroundWorld = function () {
+  Spaceship.prototype.wrapAroundWorld.apply(this);
+}
+
+Asteroid.prototype.isDead = function () {
+  return false;
+}
+
+Asteroid.prototype.checkCollisions = function () { 
+  for (var i = 0, len = Game.entities.length; i < len; i++) {
+    var entity = Game.entities[i];
+    console.log(entity != this);
+    if (entity != this) {
+      var dx = this.x - entity.x;
+      var dy = this.y - entity.y;
+      var dist = Math.sqrt(dx*dx + dy*dy);
+      if (dist < this.radius + entity.radius) {
+        this.dead = true;
+      }
+    }
+  }
+}
+
+// == Drawing ==
 
 Game.draw = {
   polygon : function(c, nsides, x, y, radius, angle, counterclockwise) {
@@ -217,7 +292,7 @@ Game.draw = {
 // == Play == 
 Game.play = function () {
   Game.step();
-  setTimeout(Game.play, 50);
+  setTimeout(Game.play, 30);
 }
 
 Game.step = function () {
@@ -227,10 +302,10 @@ Game.step = function () {
 
 Game.world = {
   updateAllEntities : function () {
-    for (var i = 0, len = Game.entities.length; i < len; i++) {
+    for (var i = 0; i < Game.entities.length; i++) {
       var entity = Game.entities[i];
       if (entity.isDead()) {
-        Game.entities.slice(0, i).concat( Game.entities.slice(i+1) ); // remove the entity
+        Game.entities = Game.entities.slice(0, i).concat( Game.entities.slice(i+1) ); // remove the entity
       } else {
         entity.move();
         entity.drawSelf();
@@ -244,6 +319,7 @@ Game.init();
 
 var spaceship = new Spaceship(300, 100);
 Game.entities.push(spaceship);
+Game.entities.push(new Asteroid(30, 40, 50));
 Game.entities.player = spaceship;
 Game.play();
 
