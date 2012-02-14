@@ -96,8 +96,39 @@ Spaceship.prototype.checkCollisions = function () {
       var dist = Math.sqrt(dx*dx + dy*dy);
       if (dist < this.radius + entity.radius) {
         this.dead = true;
+        this.explodeAgainst(entity);
       }
     }
+  }
+}
+
+Spaceship.prototype.explodeAgainst = function (asteroid) {
+  var vector = { 
+    x : this.x - asteroid.x,
+    y : this.y - asteroid.y
+  };
+  var magnitude = Math.sqrt(vector.x*vector.x + vector.y*vector.y);
+  vector.x /= magnitude;
+  vector.y /= magnitude;
+  // Point on asteroid surface where spaceship collided
+  var collidedAt = {
+    x : asteroid.x + vector.x*asteroid.radius,
+    y : asteroid.y + vector.y*asteroid.radius
+  };
+  // Explode particles from a sector on the outside of the asteroid.
+  var numParticles = (this.laser ? 5 : 50);
+  var sectorSize = Math.PI / 2; // Explode across a fourth of the asteroid.
+  var xCoord = collidedAt.x - asteroid.x;
+  var yCoord = collidedAt.y - asteroid.y; 
+  var startTheta = Math.atan2(yCoord, xCoord) - sectorSize / 2;
+  var deltaTheta = sectorSize / numParticles;
+  var r = asteroid.radius;
+  var debrisLifetime = this.laser ? 20 : 100;
+  for (var i = 0; i < numParticles; i++) {
+    var theta = startTheta + i * deltaTheta;
+    var x = r * Math.cos(theta) + asteroid.x;
+    var y = r * Math.sin(theta) + asteroid.y;
+    Game.entities.push(new Debris(x, y, asteroid, debrisLifetime));
   }
 }
 
@@ -178,6 +209,7 @@ Spaceship.prototype.shootLaser = function () {
 
 //Laser
 function Laser(source) {
+  this.radius = 5;
   this.x = source.x;
   this.y = source.y;
   var sourceSpeed = Math.sqrt(source.velX*source.velX + source.velY*source.velY);
@@ -185,11 +217,12 @@ function Laser(source) {
   this.velX = source.velX * (sourceSpeed + laserSpeed) / sourceSpeed;
   this.velY = source.velY * (sourceSpeed + laserSpeed) / sourceSpeed;
   this.lifetime = 0;
+  this.laser = true;
 }
 
 Laser.prototype.drawSelf = function () {
   Game.context.beginPath();
-  Game.draw.circle(Game.context, this.x, this.y, 5);
+  Game.draw.circle(Game.context, this.x, this.y, this.radius);
   Game.context.fill();
 }
 
@@ -198,13 +231,25 @@ Laser.prototype.move = function () {
   this.y += this.velY;
   this.lifetime++;
   this.wrapAroundWorld();
+  this.checkCollisions();
+}
+
+Laser.prototype.checkCollisions = function () {
+  Spaceship.prototype.checkCollisions.call(this);
+}
+
+Laser.prototype.explodeAgainst = function (asteroid) {
+  Spaceship.prototype.explodeAgainst.call(this, asteroid);
 }
 
 Laser.prototype.wrapAroundWorld = function () {
-  Spaceship.prototype.wrapAroundWorld.apply(this);
+  Spaceship.prototype.wrapAroundWorld.call(this);
 }
 
 Laser.prototype.isDead = function () {
+  if (this.dead) {
+    return true;
+  }
   var timeToLive = 40;
   if (this.lifetime > timeToLive) {
     return true;
@@ -236,7 +281,7 @@ Asteroid.prototype.move = function () {
 }
 
 Asteroid.prototype.wrapAroundWorld = function () {
-  Spaceship.prototype.wrapAroundWorld.apply(this);
+  Spaceship.prototype.wrapAroundWorld.call(this);
 }
 
 Asteroid.prototype.isDead = function () {
@@ -256,6 +301,42 @@ Asteroid.prototype.checkCollisions = function () {
       }
     }
   }
+}
+
+function Debris(x, y, asteroid, lifetimeMax) {
+  this.x = x;
+  this.y = y;
+  this.velX = this.x - asteroid.x;
+  this.velY = this.y - asteroid.y;
+  var magnitude = Math.sqrt(this.velX*this.velX + this.velY*this.velY);
+  var speed = 1 + Math.random() * 10;
+  this.velX = speed * (this.velX / magnitude) + asteroid.velX;
+  this.velY = speed * (this.velY / magnitude) + asteroid.velY;
+  this.lifetime = 0;
+  this.lifetimeMax = lifetimeMax;
+  this.radius = 3;
+}
+
+Debris.prototype.drawSelf = function () {
+  Game.context.beginPath();
+  Game.draw.circle(Game.context, this.x, this.y, this.radius);
+  Game.context.fill();
+}
+
+Debris.prototype.move = function () {
+  this.x += this.velX;
+  this.y += this.velY;
+  this.lifetime++;
+  this.wrapAroundWorld(); 
+}
+
+Debris.prototype.wrapAroundWorld = function () { 
+  Spaceship.prototype.wrapAroundWorld.call(this);
+}
+
+Debris.prototype.isDead = function () {
+  if (this.lifetime > this.lifetimeMax) return true;
+  return false;
 }
 
 // == Drawing ==
