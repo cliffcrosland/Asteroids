@@ -6,6 +6,12 @@ Math.randomInt = function(low, high) {
   return low + Math.floor(Math.random() * range);
 }
 
+// Returns 1 with probability 0.5, -1 also with probability 0.5.
+Math.randomSign = function () {
+  var digit = Math.floor(Math.random() * 10) % 10; // Get a random digit, 0-9
+  return Math.pow(-1, digit % 2);
+}
+
 Game.init = function () {
   Game.canvas = document.getElementById("canvas");
   Game.context = canvas.getContext('2d');
@@ -261,8 +267,8 @@ Laser.prototype.isDead = function () {
 function Asteroid(x, y, radius) {
   this.x = x;
   this.y = y;
-  this.velX = Math.randomInt(-1, 1);
-  this.velY = Math.randomInt(-1, 1);
+  this.velX = Math.random() * Math.randomSign();
+  this.velY = Math.random() * Math.randomSign();
   var magnitude = Math.sqrt(this.velX*this.velX + this.velY*this.velY);
   var speed = Math.randomInt(5, 10);
   this.velX = speed * (this.velX / magnitude);
