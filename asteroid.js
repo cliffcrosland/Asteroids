@@ -227,11 +227,11 @@ Laser.prototype.drawSelf = function () {
 }
 
 Laser.prototype.move = function () {
+  this.checkCollisions();
   this.x += this.velX;
   this.y += this.velY;
   this.lifetime++;
   this.wrapAroundWorld();
-  this.checkCollisions();
 }
 
 Laser.prototype.checkCollisions = function () {
@@ -261,8 +261,12 @@ Laser.prototype.isDead = function () {
 function Asteroid(x, y, radius) {
   this.x = x;
   this.y = y;
-  this.velX = Math.randomInt(-10, 10);
-  this.velY = Math.randomInt(-10, 10);
+  this.velX = Math.randomInt(-1, 1);
+  this.velY = Math.randomInt(-1, 1);
+  var magnitude = Math.sqrt(this.velX*this.velX + this.velY*this.velY);
+  var speed = Math.randomInt(5, 10);
+  this.velX = speed * (this.velX / magnitude);
+  this.velY = speed * (this.velY / magnitude); 
   this.radius = radius;
   this.isDangerousToPlayer = true;
 }
@@ -385,11 +389,11 @@ Game.world = {
   updateAllEntities : function () {
     for (var i = 0; i < Game.entities.length; i++) {
       var entity = Game.entities[i];
+      entity.move();
       if (entity.isDead()) {
         Game.entities = Game.entities.slice(0, i).concat( Game.entities.slice(i+1) ); // remove the entity
         i--;
       } else {
-        entity.move();
         entity.drawSelf();
       }
     }
