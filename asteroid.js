@@ -139,18 +139,18 @@ Spaceship.prototype.explodeAgainst = function (asteroid) {
 }
 
 Spaceship.prototype.wrapAroundWorld = function () {
-  var radius = this.radius || 10;
-  if (this.x > Game.canvas.width + radius) {
-    this.x = -1 * radius;
+  var beyondBoundary = 50;
+  if (this.x > Game.canvas.width + beyondBoundary) {
+    this.x = -1 * beyondBoundary;
   }
-  if (this.x < -1 * radius) {
-    this.x = Game.canvas.width + radius;
+  if (this.x < -1 * beyondBoundary) {
+    this.x = Game.canvas.width + beyondBoundary;
   }
-  if (this.y > Game.canvas.height + radius) {
-    this.y = -1 * radius;
+  if (this.y > Game.canvas.height + beyondBoundary) {
+    this.y = -1 * beyondBoundary;
   }
-  if (this.y < -1 * radius) {
-    this.y = Game.canvas.height + radius;
+  if (this.y < -1 * beyondBoundary) {
+    this.y = Game.canvas.height + beyondBoundary;
   }
 }
 
