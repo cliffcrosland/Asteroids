@@ -29,7 +29,7 @@ Game.keyboard = {
       case 37: // left
         Game.keyboard.keysDown.leftArrow = true;
         break;
-      case 38: // up 
+      case 38: // up
         Game.keyboard.keysDown.upArrow = true;
         break;
       case 39: // right
@@ -37,7 +37,7 @@ Game.keyboard = {
         break;
       case 40: // down
         Game.keyboard.keysDown.downArrow = true;
-        break; 
+        break;
     }
   },
   handleKeyUp : function(evt) {
@@ -48,7 +48,7 @@ Game.keyboard = {
       case 37: // left
         Game.keyboard.keysDown.leftArrow = false;
         break;
-      case 38: // up 
+      case 38: // up
         Game.keyboard.keysDown.upArrow = false;
         break;
       case 39: // right
@@ -56,7 +56,7 @@ Game.keyboard = {
         break;
       case 40: // down
         Game.keyboard.keysDown.downArrow = false;
-        break; 
+        break;
     }
   }
 };
@@ -80,8 +80,9 @@ function Spaceship(x, y) {
 
 Spaceship.prototype.drawSelf = function() {
   Game.context.beginPath();
+  Game.context.fillStyle = "#ff0000";
   Game.draw.polygon(Game.context, 3, this.x, this.y, 20, this.angle);
-  Game.context.stroke();
+  Game.context.fill();
 };
 
 Spaceship.prototype.move = function () {
@@ -102,6 +103,8 @@ Spaceship.prototype.checkCollisions = function () {
       var dist = Math.sqrt(dx*dx + dy*dy);
       if (dist < this.radius + entity.radius) {
         this.dead = true;
+        var snd = new Audio("boom.mp3");
+        snd.play();
         this.explodeAgainst(entity);
       }
     }
@@ -109,7 +112,7 @@ Spaceship.prototype.checkCollisions = function () {
 }
 
 Spaceship.prototype.explodeAgainst = function (asteroid) {
-  var vector = { 
+  var vector = {
     x : this.x - asteroid.x,
     y : this.y - asteroid.y
   };
@@ -125,7 +128,7 @@ Spaceship.prototype.explodeAgainst = function (asteroid) {
   var numParticles = (this.laser ? 5 : 50);
   var sectorSize = Math.PI / 2; // Explode across a fourth of the asteroid.
   var xCoord = collidedAt.x - asteroid.x;
-  var yCoord = collidedAt.y - asteroid.y; 
+  var yCoord = collidedAt.y - asteroid.y;
   var startTheta = Math.atan2(yCoord, xCoord) - sectorSize / 2;
   var deltaTheta = sectorSize / numParticles;
   var r = asteroid.radius;
@@ -196,7 +199,7 @@ Spaceship.prototype.slowDown = function () {
   this.velY *= 0.9;
 }
 
-Spaceship.prototype.isDead = function () { 
+Spaceship.prototype.isDead = function () {
   return this.dead;
 }
 
@@ -206,10 +209,12 @@ Spaceship.prototype.handleUserShootInput = function () {
     this.shootLaser();
   } else if (!Game.keyboard.keysDown.spacebar) {
     this.laserIsReady = true; // On key up, the laser recharges
-  } 
+  }
 }
 
 Spaceship.prototype.shootLaser = function () {
+  var snd = new Audio("pew.mp3");
+  snd.play();
   Game.entities.push(new Laser(this));
 }
 
@@ -229,6 +234,7 @@ function Laser(source) {
 Laser.prototype.drawSelf = function () {
   Game.context.beginPath();
   Game.draw.circle(Game.context, this.x, this.y, this.radius);
+  Game.context.fillStyle = "#ff0000";
   Game.context.fill();
 }
 
@@ -245,7 +251,11 @@ Laser.prototype.checkCollisions = function () {
 }
 
 Laser.prototype.explodeAgainst = function (asteroid) {
+  var snd = new Audio("boom.mp3");
+  snd.play();
   Spaceship.prototype.explodeAgainst.call(this, asteroid);
+  asteroid.health -= 1;
+  console.log(asteroid.health);
 }
 
 Laser.prototype.wrapAroundWorld = function () {
@@ -265,6 +275,7 @@ Laser.prototype.isDead = function () {
 
 //Asteroid
 function Asteroid(x, y, radius) {
+  this.health = 10;
   this.x = x;
   this.y = y;
   this.velX = Math.random() * Math.randomSign();
@@ -272,7 +283,7 @@ function Asteroid(x, y, radius) {
   var magnitude = Math.sqrt(this.velX*this.velX + this.velY*this.velY);
   var speed = Math.randomInt(5, 10);
   this.velX = speed * (this.velX / magnitude);
-  this.velY = speed * (this.velY / magnitude); 
+  this.velY = speed * (this.velY / magnitude);
   this.radius = radius;
   this.isDangerousToPlayer = true;
 }
@@ -280,11 +291,28 @@ function Asteroid(x, y, radius) {
 Asteroid.prototype.drawSelf = function () {
   Game.context.beginPath();
   Game.context.arc(this.x, this.y, this.radius, 0, Math.PI * 2, false);
-  Game.context.stroke();
+  Game.context.fillStyle = "#00ff00";
+  Game.context.fill();
 }
+
+Asteroid.prototype.blowUp = function () {
+  var r = this.radius;
+  var numDebris = 200;
+  for (var i = 0; i < numDebris; i++) {
+    var theta = i * (Math.PI * 2) / numDebris;
+    var x = r * Math.cos(theta) + this.x;
+    var y = r * Math.sin(theta) + this.y;
+    Game.entities.push(new Debris(x, y, this, 100, "#00ff00"));
+  }
+};
 
 Asteroid.prototype.move = function () {
   // this.checkCollisions();
+  if (this.health <= 0) {
+    this.blowUp();
+    this.dead = true;
+    return;
+  }
   this.x += this.velX;
   this.y += this.velY;
   this.wrapAroundWorld();
@@ -295,10 +323,10 @@ Asteroid.prototype.wrapAroundWorld = function () {
 }
 
 Asteroid.prototype.isDead = function () {
-  return false;
+  return this.dead;
 }
 
-Asteroid.prototype.checkCollisions = function () { 
+Asteroid.prototype.checkCollisions = function () {
   for (var i = 0, len = Game.entities.length; i < len; i++) {
     var entity = Game.entities[i];
     console.log(entity != this);
@@ -313,7 +341,7 @@ Asteroid.prototype.checkCollisions = function () {
   }
 }
 
-function Debris(x, y, asteroid, lifetimeMax) {
+function Debris(x, y, asteroid, lifetimeMax, optionalColor) {
   this.x = x;
   this.y = y;
   this.velX = this.x - asteroid.x;
@@ -325,11 +353,13 @@ function Debris(x, y, asteroid, lifetimeMax) {
   this.lifetime = 0;
   this.lifetimeMax = lifetimeMax;
   this.radius = 3;
+  this.color = optionalColor || "#ff0000";
 }
 
 Debris.prototype.drawSelf = function () {
   Game.context.beginPath();
   Game.draw.circle(Game.context, this.x, this.y, this.radius);
+  Game.context.fillStyle = this.color;
   Game.context.fill();
 }
 
@@ -337,10 +367,10 @@ Debris.prototype.move = function () {
   this.x += this.velX;
   this.y += this.velY;
   this.lifetime++;
-  this.wrapAroundWorld(); 
+  this.wrapAroundWorld();
 }
 
-Debris.prototype.wrapAroundWorld = function () { 
+Debris.prototype.wrapAroundWorld = function () {
   Spaceship.prototype.wrapAroundWorld.call(this);
 }
 
@@ -371,6 +401,8 @@ Game.draw = {
   },
   clear : function () {
     Game.canvas.width = Game.canvas.width; // Seems hacky, but works great.
+    var img = document.getElementById("space_background");
+    Game.context.drawImage(img, 0, 0);
   },
   renderAllEntities : function () {
     for (var i = 0, len = Game.entities.length; i < len; i++) {
@@ -380,7 +412,7 @@ Game.draw = {
   }
 }
 
-// == Play == 
+// == Play ==
 Game.play = function () {
   Game.step();
   setTimeout(Game.play, 30);
@@ -412,6 +444,8 @@ Game.init();
 var spaceship = new Spaceship(300, 100);
 Game.entities.push(spaceship);
 Game.entities.push(new Asteroid(30, 40, 50));
+Game.entities.push(new Asteroid(100, 40, 50));
+Game.entities.push(new Asteroid(30, 400, 50));
 Game.entities.player = spaceship;
 Game.play();
 
